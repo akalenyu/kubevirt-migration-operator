@@ -31,16 +31,16 @@ import (
 )
 
 // namespace where the project is deployed in
-const namespace = "kubevirt-migration-operator-system"
+const namespace = "kubevirt-migration-system"
 
 // serviceAccountName created for the project
-const serviceAccountName = "kubevirt-migration-operator-controller-manager"
+const serviceAccountName = "kubevirt-migration-controller-manager"
 
 // metricsServiceName is the name of the metrics service of the project
-const metricsServiceName = "kubevirt-migration-operator-controller-manager-metrics-service"
+const metricsServiceName = "kubevirt-migration-controller-manager-metrics-service"
 
 // metricsRoleBindingName is the name of the RBAC that will be created to allow get the metrics data
-const metricsRoleBindingName = "kubevirt-migration-operator-metrics-binding"
+const metricsRoleBindingName = "kubevirt-migration-metrics-binding"
 
 var _ = Describe("Manager", Ordered, func() {
 	var controllerPodName string
