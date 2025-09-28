@@ -43,6 +43,7 @@ import (
 	sdkr "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/reconciler"
 	migrationsv1alpha1 "kubevirt.io/kubevirt-migration-operator/api/v1alpha1"
 	"kubevirt.io/kubevirt-migration-operator/pkg/common"
+	"kubevirt.io/kubevirt-migration-operator/pkg/resources/cluster"
 	"kubevirt.io/kubevirt-migration-operator/pkg/resources/namespaced"
 )
 
@@ -67,6 +68,7 @@ type MigControllerReconciler struct {
 	scheme         *runtime.Scheme
 	recorder       record.EventRecorder
 	namespacedArgs *namespaced.FactoryArgs
+	clusterArgs    *cluster.FactoryArgs
 	reconciler     *sdkr.Reconciler
 	namespace      string
 
@@ -80,12 +82,11 @@ func NewReconciler(mgr manager.Manager) (*MigControllerReconciler, error) {
 	namespace := GetNamespace("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	restClient := mgr.GetClient()
 	// onOpenshift := util.OnOpenshift()
-	// clusterArgs := &cluster.FactoryArgs{
-	// 	Namespace:   namespace,
-	// 	Client:      restClient,
-	// 	Logger:      log,
-	// 	OnOpenshift: onOpenshift,
-	// }
+	clusterArgs := &cluster.FactoryArgs{
+		Namespace: namespace,
+		Client:    restClient,
+		Logger:    log,
+	}
 
 	err := envconfig.Process("", &namespacedArgs)
 	if err != nil {
@@ -112,6 +113,7 @@ func NewReconciler(mgr manager.Manager) (*MigControllerReconciler, error) {
 		scheme:         scheme,
 		recorder:       recorder,
 		namespacedArgs: &namespacedArgs,
+		clusterArgs:    clusterArgs,
 		namespace:      namespace,
 		getCache:       mgr.GetCache,
 	}
@@ -131,10 +133,29 @@ func NewReconciler(mgr manager.Manager) (*MigControllerReconciler, error) {
 // +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migcontrollers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migcontrollers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migcontrollers/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=apps,namespace=kubevirt-migration-system,resources=deployments,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=core,namespace=kubevirt-migration-system,resources=serviceaccounts,verbs=list;watch;create;update;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace=kubevirt-migration-system,resources=roles;rolebindings,verbs=list;watch;create;update;delete
 // +kubebuilder:rbac:groups=scheduling.k8s.io,resources=priorityclasses,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions;customresourcedefinitions/status,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=list;watch;create;update;delete
+
+// +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migplans,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migplans/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migplans/finalizers,verbs=update
+// +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migmigrations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migmigrations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migmigrations/finalizers,verbs=update
+// +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migclusters,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migclusters/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migclusters/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core,resources=persistentvolumes,verbs=list;watch
+// +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=list;watch;update
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=list;watch
+// +kubebuilder:rbac:groups=kubevirt.io,resources=kubevirts,verbs=list;watch
+// +kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

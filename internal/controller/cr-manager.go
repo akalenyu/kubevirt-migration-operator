@@ -16,6 +16,7 @@ import (
 	"kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk"
 
 	migrationsv1alpha1 "kubevirt.io/kubevirt-migration-operator/api/v1alpha1"
+	"kubevirt.io/kubevirt-migration-operator/pkg/resources/cluster"
 	"kubevirt.io/kubevirt-migration-operator/pkg/resources/namespaced"
 )
 
@@ -82,15 +83,15 @@ func (r *MigControllerReconciler) GetAllResources(crObject client.Object) ([]cli
 	cr := crObject.(*migrationsv1alpha1.MigController)
 	var resources []client.Object
 
-	// if sdk.DeployClusterResources() {
-	// 	crs, err := cluster.CreateAllStaticResources(r.clusterArgs)
-	// 	if err != nil {
-	// 		sdk.MarkCrFailedHealing(cr, r.Status(cr), "CreateResources", "Unable to create all resources", r.recorder)
-	// 		return nil, err
-	// 	}
+	if true {
+		crs, err := cluster.CreateAllStaticResources(r.clusterArgs)
+		if err != nil {
+			sdk.MarkCrFailedHealing(cr, r.Status(cr), "CreateResources", "Unable to create all resources", r.recorder)
+			return nil, err
+		}
 
-	// 	resources = append(resources, crs...)
-	// }
+		resources = append(resources, crs...)
+	}
 
 	nsrs, err := namespaced.CreateAllResources(r.getNamespacedArgs(cr))
 	if err != nil {

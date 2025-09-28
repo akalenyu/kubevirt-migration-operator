@@ -55,7 +55,7 @@ func CreateContainer(name, image, verbosity, pullPolicy string) corev1.Container
 	container := ResourceBuilder.CreateContainer(name, image, pullPolicy)
 	container.TerminationMessagePolicy = corev1.TerminationMessageFallbackToLogsOnError
 	container.TerminationMessagePath = corev1.TerminationMessagePathDefault
-	container.Args = []string{"-v=" + verbosity}
+	container.Args = []string{"--zap-log-level=" + verbosity}
 	container.SecurityContext = &corev1.SecurityContext{
 		Capabilities: &corev1.Capabilities{
 			Drop: []corev1.Capability{

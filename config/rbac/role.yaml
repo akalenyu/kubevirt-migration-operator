@@ -5,9 +5,62 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  - pods
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  - customresourcedefinitions/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - kubevirt.io
+  resources:
+  - kubevirts
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - kubevirt.io
+  resources:
+  - virtualmachines
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - migrations.kubevirt.io
   resources:
+  - migclusters
   - migcontrollers
+  - migmigrations
+  - migplans
   verbs:
   - create
   - delete
@@ -19,23 +72,47 @@ rules:
 - apiGroups:
   - migrations.kubevirt.io
   resources:
+  - migclusters/finalizers
   - migcontrollers/finalizers
+  - migmigrations/finalizers
+  - migplans/finalizers
   verbs:
   - update
 - apiGroups:
   - migrations.kubevirt.io
   resources:
+  - migclusters/status
   - migcontrollers/status
+  - migmigrations/status
+  - migplans/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  verbs:
+  - create
+  - delete
+  - list
+  - update
+  - watch
 - apiGroups:
   - scheduling.k8s.io
   resources:
   - priorityclasses
   verbs:
   - get
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
   - list
   - watch
 ---
