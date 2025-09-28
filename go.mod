@@ -1,8 +1,6 @@
 module kubevirt.io/kubevirt-migration-operator
 
-go 1.24.0
-
-toolchain go1.24.4
+go 1.23.0
 
 godebug default=go1.23
 
@@ -22,7 +20,16 @@ require (
 	sigs.k8s.io/controller-runtime v0.20.4
 )
 
-replace kubevirt.io/controller-lifecycle-operator-sdk/api => kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90
+replace (
+	github.com/openshift/api => github.com/openshift/api v0.0.0-20250129180039-d15841be6bde
+
+	k8s.io/api => k8s.io/api v0.32.1
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.32.1
+	k8s.io/apimachinery => k8s.io/apimachinery v0.32.1
+	k8s.io/apiserver => k8s.io/apiserver v0.32.1
+
+	kubevirt.io/controller-lifecycle-operator-sdk/api => kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90
+)
 
 require (
 	cel.dev/expr v0.18.0 // indirect
@@ -53,6 +60,7 @@ require (
 	github.com/google/cel-go v0.22.0 // indirect
 	github.com/google/gnostic-models v0.6.9 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20241029153458-d1b30febd7db // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
