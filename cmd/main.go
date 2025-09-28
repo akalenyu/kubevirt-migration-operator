@@ -30,6 +30,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -178,7 +179,14 @@ func main() {
 		})
 	}
 
+	namespace := controller.GetNamespace("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	setupLog.Info("cache namespace", "namespace", namespace)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				namespace: {},
+			},
+		},
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
@@ -202,10 +210,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.MigControllerReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	reconciler, err := controller.NewReconciler(mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to create reconciler")
+		os.Exit(1)
+	}
+	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MigController")
 		os.Exit(1)
 	}

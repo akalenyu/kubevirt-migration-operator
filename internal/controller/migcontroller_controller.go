@@ -18,24 +18,123 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"strings"
+	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kelseyhightower/envconfig"
+
+	"kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/callbacks"
+	sdkr "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/reconciler"
 	migrationsv1alpha1 "kubevirt.io/kubevirt-migration-operator/api/v1alpha1"
+	"kubevirt.io/kubevirt-migration-operator/pkg/common"
+	"kubevirt.io/kubevirt-migration-operator/pkg/resources/namespaced"
+)
+
+var (
+	log = logf.Log.WithName("migration-operator")
+)
+
+const (
+	finalizerName = "operator.migration.kubevirt.io"
+
+	createVersionLabel = "operator.migration.kubevirt.io/createVersion"
+	updateVersionLabel = "operator.migration.kubevirt.io/updateVersion"
+	// LastAppliedConfigAnnotation is the annotation that holds the last resource state which we put on resources under our governance
+	LastAppliedConfigAnnotation = "operator.migration.kubevirt.io/lastAppliedConfiguration"
+
+	requeueInterval = 1 * time.Minute
 )
 
 // MigControllerReconciler reconciles a MigController object
 type MigControllerReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	scheme         *runtime.Scheme
+	recorder       record.EventRecorder
+	namespacedArgs *namespaced.FactoryArgs
+	reconciler     *sdkr.Reconciler
+	namespace      string
+
+	getCache   func() cache.Cache
+	controller controller.Controller
+}
+
+// newReconciler returns a new reconcile.Reconciler
+func NewReconciler(mgr manager.Manager) (*MigControllerReconciler, error) {
+	var namespacedArgs namespaced.FactoryArgs
+	namespace := GetNamespace("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	restClient := mgr.GetClient()
+	// onOpenshift := util.OnOpenshift()
+	// clusterArgs := &cluster.FactoryArgs{
+	// 	Namespace:   namespace,
+	// 	Client:      restClient,
+	// 	Logger:      log,
+	// 	OnOpenshift: onOpenshift,
+	// }
+
+	err := envconfig.Process("", &namespacedArgs)
+	if err != nil {
+		return nil, err
+	}
+
+	namespacedArgs.Namespace = namespace
+	// namespacedArgs.OnOpenshift = onOpenshift
+
+	log.Info("", "VARS", fmt.Sprintf("%+v", namespacedArgs))
+
+	scheme := mgr.GetScheme()
+	uncachedClient, err := client.New(mgr.GetConfig(), client.Options{
+		Scheme: scheme,
+		Mapper: mgr.GetRESTMapper(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	recorder := mgr.GetEventRecorderFor("migcontroller-controller")
+
+	r := &MigControllerReconciler{
+		Client:         mgr.GetClient(),
+		scheme:         scheme,
+		recorder:       recorder,
+		namespacedArgs: &namespacedArgs,
+		namespace:      namespace,
+		getCache:       mgr.GetCache,
+	}
+	callbackDispatcher := callbacks.NewCallbackDispatcher(log, restClient, uncachedClient, scheme, namespace)
+	r.reconciler = sdkr.NewReconciler(
+		r, log, restClient,
+		callbackDispatcher, scheme, mgr.GetCache,
+		createVersionLabel, updateVersionLabel, LastAppliedConfigAnnotation,
+		requeueInterval, finalizerName, true, recorder,
+	).WithNamespacedCR()
+
+	r.registerHooks()
+
+	return r, nil
 }
 
 // +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migcontrollers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migcontrollers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=migrations.kubevirt.io,resources=migcontrollers/finalizers,verbs=update
+// +kubebuilder:rbac:groups=apps,namespace=kubevirt-migration-system,resources=deployments,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=core,namespace=kubevirt-migration-system,resources=serviceaccounts,verbs=list;watch;create;update;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace=kubevirt-migration-system,resources=roles;rolebindings,verbs=list;watch;create;update;delete
+// +kubebuilder:rbac:groups=scheduling.k8s.io,resources=priorityclasses,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -51,15 +150,90 @@ func (r *MigControllerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	log.Info("Reconciling MigController")
 
-	// TODO(user): your logic here
+	operatorVersion := r.namespacedArgs.OperatorVersion
+	cr := &migrationsv1alpha1.MigController{}
+	crKey := client.ObjectKey{Namespace: req.NamespacedName.Namespace, Name: req.NamespacedName.Name}
+	err := r.Client.Get(context.TODO(), crKey, cr)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("MigController CR does not exist")
+			return reconcile.Result{}, nil
+		}
+		log.Error(err, "Failed to get MigController object")
+		return reconcile.Result{}, err
+	}
 
-	return ctrl.Result{}, nil
+	res, err := r.reconciler.Reconcile(req, operatorVersion, log)
+	if err != nil {
+		log.Error(err, "failed to reconcile")
+	}
+
+	return res, err
+}
+
+// createOperatorConfig creates operator config map
+func (r *MigControllerReconciler) createOperatorConfig(cr client.Object) error {
+	// ctrl := cr.(*migrationsv1alpha1.MigController)
+	// installerLabels := util.GetRecommendedInstallerLabelsFromCr(ctrl)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ConfigMapName,
+			Namespace: r.namespace,
+			Labels:    map[string]string{"operator.migration.kubevirt.io": ""},
+		},
+	}
+	// util.SetRecommendedLabels(cm, installerLabels, "migration-operator")
+
+	if err := controllerutil.SetControllerReference(cr, cm, r.scheme); err != nil {
+		return err
+	}
+
+	return r.Client.Create(context.TODO(), cm)
+}
+
+func (r *MigControllerReconciler) getConfigMap() (*corev1.ConfigMap, error) {
+	cm := &corev1.ConfigMap{}
+	key := client.ObjectKey{Name: common.ConfigMapName, Namespace: r.namespace}
+
+	if err := r.Client.Get(context.TODO(), key, cm); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return cm, nil
+}
+
+// SetController sets the controller dependency
+func (r *MigControllerReconciler) SetController(controller controller.Controller) {
+	r.controller = controller
+	r.reconciler.WithController(controller)
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MigControllerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&migrationsv1alpha1.MigController{}).
-		Named("migcontroller").
-		Complete(r)
+	// Create a new controller
+	c, err := controller.New("migcontroller-controller", mgr, controller.Options{Reconciler: r})
+	if err != nil {
+		return err
+	}
+
+	r.SetController(c)
+
+	if err = r.reconciler.WatchCR(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetNamespace(path string) string {
+	if data, err := os.ReadFile(path); err == nil {
+		if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
+			return ns
+		}
+	}
+	return "kubevirt-migration"
 }

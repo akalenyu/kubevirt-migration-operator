@@ -17,7 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -25,17 +28,18 @@ import (
 
 // MigControllerSpec defines the desired state of MigController.
 type MigControllerSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of MigController. Edit migcontroller_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// PriorityClass of the control plane
+	PriorityClass *MigControllerPriorityClass `json:"priorityClass,omitempty"`
+	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
+	// PullPolicy describes a policy for if/when to pull a container image
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty" valid:"required"`
+	// Rules on which nodes infrastructure pods will be scheduled
+	Infra sdkapi.NodePlacement `json:"infra,omitempty"`
 }
 
 // MigControllerStatus defines the observed state of MigController.
 type MigControllerStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	sdkapi.Status `json:",inline"`
 }
 
 // +kubebuilder:object:root=true
@@ -58,6 +62,9 @@ type MigControllerList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []MigController `json:"items"`
 }
+
+// MigControllerPriorityClass defines the priority class of the control plane.
+type MigControllerPriorityClass string
 
 func init() {
 	SchemeBuilder.Register(&MigController{}, &MigControllerList{})

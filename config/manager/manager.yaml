@@ -60,6 +60,17 @@ spec:
       containers:
       - command:
         - /manager
+        env:
+        - name: OPERATOR_VERSION
+          value: "0.0.1"
+        - name: CONTROLLER_IMAGE
+          value: "registry:5000/kubevirt-migration-controller"
+        - name: DEPLOY_CLUSTER_RESOURCES
+          value: "true"
+        - name: VERBOSITY 
+          value: "3"
+        - name: PULL_POLICY
+          value: "Always"
         args:
           - --leader-elect
           - --health-probe-bind-address=:8081
