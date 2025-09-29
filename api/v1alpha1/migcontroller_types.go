@@ -43,8 +43,8 @@ type MigControllerStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=migcontrollers,scope=Cluster
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 
 // MigController is the Schema for the migcontrollers API.
 type MigController struct {
