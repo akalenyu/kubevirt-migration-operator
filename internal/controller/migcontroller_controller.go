@@ -52,12 +52,12 @@ var (
 )
 
 const (
-	finalizerName = "operator.migration.kubevirt.io"
+	finalizerName = "operator.migrations.kubevirt.io"
 
-	createVersionLabel = "operator.migration.kubevirt.io/createVersion"
-	updateVersionLabel = "operator.migration.kubevirt.io/updateVersion"
+	createVersionLabel = "operator.migrations.kubevirt.io/createVersion"
+	updateVersionLabel = "operator.migrations.kubevirt.io/updateVersion"
 	// LastAppliedConfigAnnotation is the annotation that holds the last resource state which we put on resources under our governance
-	LastAppliedConfigAnnotation = "operator.migration.kubevirt.io/lastAppliedConfiguration"
+	LastAppliedConfigAnnotation = "operator.migrations.kubevirt.io/lastAppliedConfiguration"
 
 	requeueInterval = 1 * time.Minute
 )
@@ -201,7 +201,7 @@ func (r *MigControllerReconciler) createOperatorConfig(cr client.Object) error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ConfigMapName,
 			Namespace: r.namespace,
-			Labels:    map[string]string{"operator.migration.kubevirt.io": ""},
+			Labels:    map[string]string{"operator.migrations.kubevirt.io": ""},
 		},
 	}
 	// util.SetRecommendedLabels(cm, installerLabels, "migration-operator")

@@ -5,16 +5,18 @@ go 1.23.0
 godebug default=go1.23
 
 require (
+	github.com/coreos/go-semver v0.3.1
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v1.4.2
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/onsi/ginkgo/v2 v2.22.0
 	github.com/onsi/gomega v1.36.1
 	github.com/openshift/api v0.0.0-20250730121250-4c1f9af7fc78
+	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190105193533-81104ffdc4fb
 	k8s.io/api v0.33.2
 	k8s.io/apiextensions-apiserver v0.32.1
 	k8s.io/apimachinery v0.33.2
-	k8s.io/client-go v0.32.1
+	k8s.io/client-go v8.0.0+incompatible
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	kubevirt.io/controller-lifecycle-operator-sdk v0.2.7
 	kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90
@@ -23,11 +25,13 @@ require (
 
 replace (
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20250129180039-d15841be6bde
+	github.com/operator-framework/operator-lifecycle-manager => github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
 
 	k8s.io/api => k8s.io/api v0.32.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.32.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.32.1
 	k8s.io/apiserver => k8s.io/apiserver v0.32.1
+	k8s.io/client-go => k8s.io/client-go v0.32.1
 
 	kubevirt.io/controller-lifecycle-operator-sdk/api => kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90
 )

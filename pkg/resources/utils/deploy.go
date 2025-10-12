@@ -22,6 +22,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
+	secv1 "github.com/openshift/api/security/v1"
+
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	utils "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/resources"
 	"kubevirt.io/kubevirt-migration-operator/pkg/common"
@@ -29,7 +31,7 @@ import (
 
 const (
 	// GenericLabelKey is the labe applied to all non operator resources
-	GenericLabelKey = "migration.kubevirt.io"
+	GenericLabelKey = "migrations.kubevirt.io"
 	// AppLabelValue is the value applied to all non operator resources
 	AppLabelValue = "kubevirt-migration-controller"
 	// PriorityClassDefault is the priority class for all pods.
@@ -44,7 +46,7 @@ var commonLabels = map[string]string{
 }
 
 var operatorLabels = map[string]string{
-	"operator.migration.kubevirt.io": "",
+	"operator.migrations.kubevirt.io": "",
 }
 
 // ResourceBuilder helps in creating k8s resources
@@ -107,52 +109,45 @@ func CreateDeployment(name, matchKey, matchValue, serviceAccountName string, rep
 	return deployment
 }
 
-// // CreateOperatorDeployment creates operator deployment
-// func CreateOperatorDeployment(name, namespace, matchKey, matchValue, serviceAccount string, imagePullSecrets []corev1.LocalObjectReference, numReplicas int32) *appsv1.Deployment {
-// 	podSpec := corev1.PodSpec{
-// 		SecurityContext: &corev1.PodSecurityContext{
-// 			RunAsNonRoot: &[]bool{true}[0],
-// 		},
-// 		ImagePullSecrets: imagePullSecrets,
-// 		NodeSelector:     map[string]string{"kubernetes.io/os": "linux"},
-// 		Tolerations: []corev1.Toleration{
-// 			{
-// 				Key:      "CriticalAddonsOnly",
-// 				Operator: corev1.TolerationOpExists,
-// 			},
-// 		},
-// 		Affinity: &corev1.Affinity{
-// 			PodAffinity: &corev1.PodAffinity{
-// 				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-// 					{
-// 						Weight: int32(1),
-// 						PodAffinityTerm: corev1.PodAffinityTerm{
-// 							LabelSelector: &metav1.LabelSelector{
-// 								MatchExpressions: []metav1.LabelSelectorRequirement{
-// 									{
-// 										Key:      "cdi.kubevirt.io",
-// 										Operator: metav1.LabelSelectorOpIn,
-// 										Values:   []string{name}},
-// 								},
-// 							},
-// 							TopologyKey: "kubernetes.io/hostname",
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
-// 	deployment := ResourceBuilder.CreateOperatorDeployment(name, namespace, matchKey, matchValue, serviceAccount, numReplicas, podSpec)
-// 	labels := util.MergeLabels(deployment.Spec.Template.GetLabels(), map[string]string{PrometheusLabelKey: PrometheusLabelValue, CDIComponentLabel: CDIOperatorName})
-// 	deployment.SetLabels(labels)
-// 	deployment.Spec.Template.SetLabels(labels)
-// 	if deployment.Spec.Template.Annotations == nil {
-// 		deployment.Spec.Template.Annotations = make(map[string]string)
-// 	}
-// 	deployment.Spec.Template.Annotations[secv1.RequiredSCCAnnotation] = RestrictedSCCName
+// CreateOperatorDeployment creates operator deployment
+func CreateOperatorDeployment(name, namespace, matchKey, matchValue, serviceAccount string, numReplicas int32) *appsv1.Deployment {
+	podSpec := corev1.PodSpec{
+		SecurityContext: &corev1.PodSecurityContext{
+			RunAsNonRoot: ptr.To(true),
+		},
+		NodeSelector: map[string]string{"kubernetes.io/os": "linux"},
+		Affinity: &corev1.Affinity{
+			PodAffinity: &corev1.PodAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					{
+						Weight: int32(1),
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchExpressions: []metav1.LabelSelectorRequirement{
+									{
+										Key:      GenericLabelKey,
+										Operator: metav1.LabelSelectorOpIn,
+										Values:   []string{name}},
+								},
+							},
+							TopologyKey: "kubernetes.io/hostname",
+						},
+					},
+				},
+			},
+		},
+	}
+	deployment := ResourceBuilder.CreateOperatorDeployment(name, namespace, matchKey, matchValue, serviceAccount, numReplicas, podSpec)
+	// labels := util.MergeLabels(deployment.Spec.Template.GetLabels(), map[string]string{PrometheusLabelKey: PrometheusLabelValue, CDIComponentLabel: CDIOperatorName})
+	// deployment.SetLabels(labels)
+	// deployment.Spec.Template.SetLabels(labels)
+	if deployment.Spec.Template.Annotations == nil {
+		deployment.Spec.Template.Annotations = make(map[string]string)
+	}
+	deployment.Spec.Template.Annotations[secv1.RequiredSCCAnnotation] = common.RestrictedSCCName
 
-// 	return deployment
-// }
+	return deployment
+}
 
 // AddPodPreferredDuringSchedulingIgnoredDuringExecution to affinity
 func AddPodPreferredDuringSchedulingIgnoredDuringExecution(name string, affinity *corev1.Affinity) *corev1.Affinity {

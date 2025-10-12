@@ -22,7 +22,7 @@ const (
 	InstallerVersionLabel = "INSTALLER_VERSION_LABEL"
 
 	// PrometheusLabelKey provides the label to indicate prometheus metrics are available in the pods.
-	PrometheusLabelKey = "prometheus.migration.kubevirt.io"
+	PrometheusLabelKey = "prometheus.migrations.kubevirt.io"
 	// PrometheusLabelValue provides the label value
 	PrometheusLabelValue = "true"
 
@@ -31,7 +31,7 @@ const (
 	// ControllerServiceAccountName is the name of the controller service account
 	ControllerServiceAccountName = "kubevirt-migration-sa"
 	// ComponentLabel is the labe applied to all non operator resources
-	ComponentLabel = "migration.kubevirt.io"
+	ComponentLabel = "migrations.kubevirt.io"
 	// ConfigMapName is the name of the configmap that owns controller resources
 	ConfigMapName = "kubevirt-migration-controller-config"
 )
